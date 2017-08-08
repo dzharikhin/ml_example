@@ -1,0 +1,16 @@
+[package]
+name = "ml-example"
+version = "0.0.1"
+authors = ["me <me@gmail.com>"]
+
+
+[[bin]]
+name = "daemon"
+path = "src/neural/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/tree/main.rs"
+
+[dependencies]
+rand = "0.3"
