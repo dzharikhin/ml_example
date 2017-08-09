@@ -1,4 +1,6 @@
+extern crate itertools;
 use std::collections::HashMap;
+use itertools::Itertools;
 #[derive(Debug)]
 struct Object {
     f1: i8,
@@ -57,13 +59,13 @@ fn main() {
         TrainObject {o: Object { f1: 2, f2: 3, f3: 1}, class: 1},
         TrainObject {o: Object { f1: 1, f2: 2, f3: 2}, class: 2}
     ];
-    let root = build_tree(data.iter().collect(), &providers);
+    let root = build_tree(data, &providers);
     let test_object = Object { f1: 2, f2: 1, f3: 3 };
     println!("============================Learning complete, starting prediction");
     root.get_class(&test_object);
 }
 
-fn build_tree<'a>(data: Vec<&TrainObject>, providers: &'a HashMap<String, Box<Fn(&Object) -> i8>>) -> Box<Node + 'a> {
+fn build_tree<'a>(data: Vec<TrainObject>, providers: &'a HashMap<String, Box<Fn(&Object) -> i8>>) -> Box<Node + 'a> {
     let data_size = data.len();
     println!("Data size: {}", &data_size);
     let mut classes: Vec<i8> = data.iter().map(|obj| obj.class).collect();
@@ -79,7 +81,7 @@ fn build_tree<'a>(data: Vec<&TrainObject>, providers: &'a HashMap<String, Box<Fn
         .fold(1.0, |main_gini, next_class| main_gini * next_class);
     println!("Main Gini: {}", main_gini_index);
 
-    let feature_ginis: HashMap<_, _> = providers.clone().iter()
+    let feature_ginis: HashMap<_, _> = providers.iter()
         .map(|(feature_key, feature_provider)| {
             println!("\nCalculating Gini for feature: {}", feature_key);
             (feature_key, calculate_gini_for_feature(feature_provider, &data, &classes))
@@ -100,15 +102,8 @@ fn build_tree<'a>(data: Vec<&TrainObject>, providers: &'a HashMap<String, Box<Fn
         (max_feature_key, _) => {
             println!("Best feature based on Gini is {}", &max_feature_key);
             let provider = providers.get(&max_feature_key).unwrap();
-            let mut distinct_data: Vec<_> = data.clone().iter().map(|&obj| &obj.o).map(|o| provider(o)).collect();
-            distinct_data.sort();
-            distinct_data.dedup();
-            let route_map: HashMap<_, _> = distinct_data.into_iter()
-                .map(|feature_value| {
-                    println!("Building route: feature={}, value={}\n", &max_feature_key, &feature_value);
-                    let child_node = build_tree(data.clone().into_iter().filter(|obj| provider(&obj.o) == feature_value).collect(), providers);
-                    return (feature_value, child_node);
-                })
+            let route_map: HashMap<_, _> = data.into_iter().group_by(|obj| provider(&obj.o))
+                .into_iter().map(|entry| (entry.0, build_tree(entry.1.into_iter().collect(), providers)))
                 .collect();
             println!("Returning CalcNode for feature={}", &max_feature_key);
             return Box::new(CalcNode {
@@ -120,8 +115,8 @@ fn build_tree<'a>(data: Vec<&TrainObject>, providers: &'a HashMap<String, Box<Fn
     }
 }
 
-fn calculate_gini_for_feature(provider: &Box<Fn(&Object) -> i8>, data: &Vec<&TrainObject>, classes: &Vec<i8>) -> f64 {
-    let mut distinct_target_values: Vec<_> = data.iter().map(|&obj| &obj.o).map(|o| provider(o)).collect();
+fn calculate_gini_for_feature(provider: &Box<Fn(&Object) -> i8>, data: &[TrainObject], classes: &Vec<i8>) -> f64 {
+    let mut distinct_target_values: Vec<_> = data.iter().map(|obj| &obj.o).map(|o| provider(o)).collect();
     distinct_target_values.sort();
     distinct_target_values.dedup();
     println!("Feature distinct values: {:?}", &distinct_target_values);
