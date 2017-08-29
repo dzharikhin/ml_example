@@ -19,8 +19,9 @@ struct DataSample {
 fn main() {
     let seed: &[_] = &[1, 2, 3, 4];
 
+    //this is lambda. weights have to be normalized in [-1;1]
     let func_to_approx = |x1: f64, x2: f64, x3: f64| -> f64 {sigmoid(1.0 * x1 - 0.7 * x2 + 0.3 * x3)};
-
+    //prepare dataset
     let data = generate_data(&func_to_approx, 100);
 
     let mut network = Network::new(SeedableRng::from_seed(seed), Range::new(0.0, 1.0));
@@ -28,12 +29,12 @@ fn main() {
 
     let test = DataSample { y: -100.0, x1: 0.3, x2: 0.9, x3: 0.2 };
     println!(
-        "func_to_approx:{}\nnetwork:{}",
+        "func_to_approx:{}\nneuron:{}",
         func_to_approx(test.x1, test.x2, test.x3),
         forecast(&test, &network).y
     );
 }
-
+//we don't have dataset here - let's generate it
 fn generate_data(func: &Fn(f64, f64, f64) -> f64, amount: usize) -> Vec<DataSample> {
     let mut rnd = rand::thread_rng();
     let range = Range::new(0.0, 1.0);
